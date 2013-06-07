@@ -14,6 +14,12 @@
 #define PORT 3550 /* El puerto que será abierto */
 #define BACKLOG 2 /* El número de conexiones permitidas */
 
+void readFile(){
+	
+	
+	
+}
+
 void doprocessing (int sock)
 {
     int n;
@@ -25,10 +31,38 @@ void doprocessing (int sock)
     /* Receive message from client */
     if ((recvMsgSize = recv(sock, buffer, 256, 0)) < 0)
         perror("ERROR reading to socket");
+		
+	////////////////////////////////////////////////////////READ FILE
+	FILE *fp;
+
+	fp = fopen("Loan.txt", "r");
+	fseek(fp, 77, SEEK_SET);
+	
+	//fread(buffer, sizeof(buffer), fp);
+	
+	char buffer;
+	char line[100];
+	
+	int i = 0;
+	while(buffer != EOF) 
+    { 
+        buffer = getc(archivo);
+		if(buffer == '\n'){
+			if(line[inicio_busqueda+5]==rfc[inicio_busqueda]){
+				if (send(sock, line, recvMsgSize, 0) != recvMsgSize)
+					perror("ERROR writing to socket");
+			}
+			i = 0;
+		}
+		else{
+			line[i] = buffer;
+			i++;
+		}
+    }
+	/////////////////////////////////////////////////////////////READ FILE
 
     /* Send received string and receive again until end of transmission */
-    while (recvMsgSize > 0)      /* zero indicates end of transmission */
-    {
+    
         /* Echo message back to client */
         if (send(sock, buffer, recvMsgSize, 0) != recvMsgSize)
             perror("ERROR writing to socket");
@@ -36,9 +70,9 @@ void doprocessing (int sock)
         /* See if there is more data to receive */
         if ((recvMsgSize = recv(sock, buffer, 256, 0)) < 0)
             perror("ERROR reading to socket");
-    }
+    
 
-    closesocket(sock);    /* Close client socket */
+    //closesocket(sock);    /* Close client socket */
 }
 
 BOOL initW32() 
@@ -125,7 +159,7 @@ int main()
       printf("Se obtuvo una conexión desde %s\n", inet_ntoa(client.sin_addr) );
       /* que mostrará la IP del cliente */
 
-      send(fd2,"Bienvenido a mi servidor.\n",22,0);
+      send(fd2,"Bienvenido a mi servidor.\n",27,0);
       /* que enviará el mensaje de bienvenida al cliente */
       
       doprocessing(fd2);
