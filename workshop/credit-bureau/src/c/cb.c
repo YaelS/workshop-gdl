@@ -13,63 +13,67 @@
 
 #define PORT 3550 /* El puerto que será abierto */
 #define BACKLOG 2 /* El número de conexiones permitidas */
-
-void readFile(){
-	
-	
-	
-}
+#define BEGIN_OF_RFC 4
+#define HEADERS_LENGTH 77
+#define RFC_LENGTH 10
 
 void doprocessing (int sock)
 {
     int n;
-    char buffer[256];
+    char buffer[10];
 
-    memset(&(buffer), '0', 256);
+    memset(&(buffer), '0', 10);
     int recvMsgSize;
     
     /* Receive message from client */
-    if ((recvMsgSize = recv(sock, buffer, 256, 0)) < 0)
+	//while(recvMsgSize > 0){
+    if ((recvMsgSize = recv(sock, buffer, 10, 0)) < 0)
         perror("ERROR reading to socket");
 		
+	//}
 	////////////////////////////////////////////////////////READ FILE
 	FILE *fp;
 
-	fp = fopen("Loan.txt", "r");
-	fseek(fp, 77, SEEK_SET);
+	fp = fopen("Loans.txt", "r");
+	fseek(fp, HEADERS_LENGTH, 0);
 	
-	//fread(buffer, sizeof(buffer), fp);
-	
-	char buffer;
+	int letter;
 	char line[100];
 	
-	int i = 0;
-	while(buffer != EOF) 
-    { 
-        buffer = getc(archivo);
-		if(buffer == '\n'){
-			if(line[inicio_busqueda+5]==rfc[inicio_busqueda]){
-				if (send(sock, line, recvMsgSize, 0) != recvMsgSize)
-					perror("ERROR writing to socket");
+	int i = 0, x;
+	do{ 
+        letter = getc(fp); //obtener letra por letra
+		if(letter == '\n'){ //valida que no sea fin de linea
+		
+			int inicio_busqueda = 0;
+			printf("\n*%c == %c* ",line[inicio_busqueda+BEGIN_OF_RFC],buffer[inicio_busqueda]);
+			while(line[inicio_busqueda+BEGIN_OF_RFC] == buffer[inicio_busqueda] && inicio_busqueda < RFC_LENGTH){ //condicion de fin de busqueda
+				printf("\n*%c == %c*",line[inicio_busqueda+BEGIN_OF_RFC],buffer[inicio_busqueda]);
+				if(inicio_busqueda == 9){ //si se llego al final de la busqueda y fueron iguales los caracteres					
+					if (send(sock, line, 256, 0) != recvMsgSize)
+						perror("ERROR writing to socket");
+					printf("Encontrado...");
+				}
+				inicio_busqueda++;
 			}
 			i = 0;
-		}
+		}			
 		else{
-			line[i] = buffer;
+			line[i] = letter;
 			i++;
 		}
-    }
+    }while(letter != EOF); //leer hasta fin de archivo
 	/////////////////////////////////////////////////////////////READ FILE
 
     /* Send received string and receive again until end of transmission */
     
         /* Echo message back to client */
-        if (send(sock, buffer, recvMsgSize, 0) != recvMsgSize)
-            perror("ERROR writing to socket");
+        /*if (send(sock, buffer, recvMsgSize, 0) != recvMsgSize)
+            perror("ERROR writing to socket");*/
 
         /* See if there is more data to receive */
-        if ((recvMsgSize = recv(sock, buffer, 256, 0)) < 0)
-            perror("ERROR reading to socket");
+        /*if ((recvMsgSize = recv(sock, buffer, 10, 0)) < 0)
+            perror("ERROR reading to socket");*/
     
 
     //closesocket(sock);    /* Close client socket */
