@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Este aplicacion representa a una entidad crediticia la cual
  * concentra todos los creditos otorgados a los clientes de
  * diferentes entidades.
@@ -13,57 +13,80 @@
 
 #define PORT 3550 /* El puerto que será abierto */
 #define BACKLOG 2 /* El número de conexiones permitidas */
-#define BEGIN_OF_RFC 4
-#define HEADERS_LENGTH 77
-#define RFC_LENGTH 10
+#define HEADERS_LENGTH 78 /* Numero de caracteres de la cabecera del archivo Loans.txt */
+#define RFC_LENGTH 10 /* Numero de caracteres del RFC */
+#define BUFFER_LENGTH 11 /* Tamaño del buffer para recibir mensaje */
+#define LINE_LENGTH 100 /* Tamaño del arreglo para guardar linea por linea del archivo Loans.txt*/
+#define THE_FILE "Loans.txt" /* Archivo para abrir */
 
 void doprocessing (int sock)
 {
-    int n;
-    char buffer[10];
+    char buffer[BUFFER_LENGTH];
 
-    memset(&(buffer), '0', 10);
-    int recvMsgSize;
+    int recvMsgSize = 0;
+	char opc[1]; /* Opcion que indica al programa las instrucciones de leer o escribir en Loans.txt */
+	
+	/* Se recibe la opcion para leer o escribir en Loans */
+	while(recvMsgSize <= 0){
+		if ((recvMsgSize = recv(sock, opc, 1, 0)) < 0)
+			perror("ERROR reading to socket");
+	}
     
     /* Receive message from client */
-	//while(recvMsgSize > 0){
-    if ((recvMsgSize = recv(sock, buffer, 10, 0)) < 0)
+    if ((recvMsgSize = recv(sock, buffer, BUFFER_LENGTH, 0)) < 0)
         perror("ERROR reading to socket");
 		
-	//}
-	////////////////////////////////////////////////////////READ FILE
+	printf("%s",buffer);
+	
 	FILE *fp;
+	
+	switch(opc[0]){
+		case 'R':
+			////////////////////////////////////////////////////////READ FILE
+			fp = fopen(THE_FILE, "r"); /* Abrir archivo */
+			fseek(fp, HEADERS_LENGTH, 0); /* Recorrer cursor al principio del primer registro */
+			
+			int letter;
+			char line[LINE_LENGTH];
+			
+			int i = 0;
+			int searchCount;
+			int searchBegin;
+			boolean foundRFC = 0;
 
-	fp = fopen("Loans.txt", "r");
-	fseek(fp, HEADERS_LENGTH, 0);
-	
-	int letter;
-	char line[100];
-	
-	int i = 0, x;
-	do{ 
-        letter = getc(fp); //obtener letra por letra
-		if(letter == '\n'){ //valida que no sea fin de linea
-		
-			int inicio_busqueda = 0;
-			printf("\n*%c == %c* ",line[inicio_busqueda+BEGIN_OF_RFC],buffer[inicio_busqueda]);
-			while(line[inicio_busqueda+BEGIN_OF_RFC] == buffer[inicio_busqueda] && inicio_busqueda < RFC_LENGTH){ //condicion de fin de busqueda
-				printf("\n*%c == %c*",line[inicio_busqueda+BEGIN_OF_RFC],buffer[inicio_busqueda]);
-				if(inicio_busqueda == 9){ //si se llego al final de la busqueda y fueron iguales los caracteres					
-					if (send(sock, line, 256, 0) != recvMsgSize)
-						perror("ERROR writing to socket");
-					printf("Encontrado...");
+			do{ 
+				letter = getc(fp); /* Obtener letra por letra */
+				if(letter != '\n'){ /* Valida que no sea fin de linea */			
+					line[i] = letter; /* Inserta letra por letra en el arreglo line */
+					i++;			
+				}			
+				else{	
+					/* Se recorre el contador hasta la posicion inicial del RFC */
+					for(searchBegin = 0; line[searchBegin] != '|'; searchBegin++){}
+					searchBegin++; /* Se aumenta uno el contador para que apunte al primer caracter del RFC */
+					printf("\n%c",line[searchBegin]);
+					/* Se compara caracter por caracter el buffer con los rfc de cada registro */
+					for(searchCount = 0; searchCount < RFC_LENGTH && buffer[searchCount] == line[searchCount+searchBegin]; searchCount++){
+						printf("\n*%c == %c*",line[searchCount+searchBegin],buffer[searchCount]);
+						if(searchCount == 9){ /* Validacion de salida, cuando todos los caracteres coincidieron */
+							line[i] = '%'; /* Separador de registros encontrados */
+							/* Se envia la linea encontrada */
+							if (send(sock, line, i+1, 0) != i)
+								perror("ERROR writing to socket");
+							printf(" Encontrado...");
+						}
+					}
+					i = 0;
 				}
-				inicio_busqueda++;
-			}
-			i = 0;
-		}			
-		else{
-			line[i] = letter;
-			i++;
-		}
-    }while(letter != EOF); //leer hasta fin de archivo
-	/////////////////////////////////////////////////////////////READ FILE
+			}while(letter != EOF); /* Leer hasta fin de archivo */
+			
+			/* Envio del mensaje de salida */
+			if (send(sock, "\n", 1, 0) != 1)
+				perror("ERROR writing to socket");
+			/////////////////////////////////////////////////////////////READ FILE}
+			break;
+			
+	}
 
     /* Send received string and receive again until end of transmission */
     
@@ -163,7 +186,7 @@ int main()
       printf("Se obtuvo una conexión desde %s\n", inet_ntoa(client.sin_addr) );
       /* que mostrará la IP del cliente */
 
-      send(fd2,"Bienvenido a mi servidor.\n",27,0);
+      //send(fd2,"Bienvenido a mi servidor.\n",27,0);
       /* que enviará el mensaje de bienvenida al cliente */
       
       doprocessing(fd2);
