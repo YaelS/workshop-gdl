@@ -71,7 +71,6 @@ void doprocessing (int sock)
 	
 	FILE *fp;
 	char line[LINE_LENGTH];
-	char *linep;
 	int letter;			
 	int i = 0;
 	
@@ -99,7 +98,7 @@ void doprocessing (int sock)
 					
 					if((linep = searchRFC(line, buffer)) != NULL){	/* Se llama la funcion para buscar en el archivo */
 						line[i] = '%'; 		/* Separador de registros encontrados */
-						if (send(sock, linep, i+1, 0) != i+1)
+						if (send(sock, line, i+1, 0) != i+1)
 							perror("ERROR writing to socket");
 					}
 					i = 0;					
@@ -116,6 +115,11 @@ void doprocessing (int sock)
 			
 			
 		case 'E':
+
+			/* Receive message from client */
+			char linep[LINE_LENGTH];
+			if ((recvMsgSize = recv(sock, linep, LINE_LENGTH, 0)) < 0)
+				perror("ERROR reading to socket");			
 		
 			printf("\nOpcion editar elegida...");
 			/////////////////////////////////////////////////////////////EDIT FILE
@@ -123,8 +127,6 @@ void doprocessing (int sock)
 			fp = fopen(THE_FILE, "r+");
 			
 			fseek(fp, HEADERS_LENGTH, SEEK_SET); /* Recorrer cursor al principio del primer registro */
-			
-			//fgets(line, LINE_LENGTH, fp);
 			
 			i = 0;
 			
@@ -137,18 +139,33 @@ void doprocessing (int sock)
 				}
 				else{
 					
-					if((linep = searchRFC(line, buffer)) != NULL){
+					if(strstr(line, linep)){
 						line[i] = '\0';
+						
 						printf("\nLinea a editar: %s", line);
 						
 						fseek(fp, -3, SEEK_CUR);
 						
-						printf("\nCaracter a reemplazar: %c", getc(fp));
-						//fputc('N', fp);
+						if(getc(fp) != 'N'){
+						
+							fseek(fp, -1, SEEK_CUR);						
+							fputc('N', fp);						
+							fseek(fp, 2, SEEK_CUR);
+						
+							registersNo++;
+						}
+						else{
+							fseek(fp, 3, SEEK_CUR);
+						}
 					}					
 					i = 0;
 				}
 			}while(letter != EOF);
+			
+			/* Envio del mensaje de salida */
+			responseMsg[15] = registersNo + '0';
+			if (send(sock, responseMsg, sizeof(responseMsg), 0) != sizeof(responseMsg))
+				perror("ERROR writing to socket");
 
 			break;
 			/////////////////////////////////////////////////////////////EDIT FILE END
