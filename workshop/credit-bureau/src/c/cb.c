@@ -25,7 +25,7 @@ char* searchRFC(char line[LINE_LENGTH], char buffer[BUFFER_LENGTH]){
 	int searchBegin;
 	
 	/* Se recorre el contador hasta la posicion inicial del RFC */
-	for(searchBegin = 0; line[searchBegin] != '|'; searchBegin++){}
+	for(searchBegin = 0; line[searchBegin] != '$'; searchBegin++){}
 	
 	searchBegin++; 	/* Se aumenta uno el contador para que apunte al primer caracter del RFC */
 	printf("\nComparando primer caracter del RFC: %c", line[searchBegin]);
@@ -50,9 +50,16 @@ char* searchRFC(char line[LINE_LENGTH], char buffer[BUFFER_LENGTH]){
 void doprocessing (int sock)
 {
     char buffer[BUFFER_LENGTH];
-
+	char lineBuffer[LINE_LENGTH];
+	char opc[1];	/* Opcion que indica al programa las instrucciones de leer o escribir en Loans.txt */
+	
+	FILE *fp;
     int recvMsgSize = 0;
-	char opc[1]; 	/* Opcion que indica al programa las instrucciones de leer o escribir en Loans.txt */
+	char line[LINE_LENGTH];
+	char *linep;
+	int letter;			
+	int i = 0;	
+	char responseMsg[1];
 	
 	/* Se recibe la opcion para leer o escribir en Loans */
 	while(recvMsgSize <= 0){
@@ -63,16 +70,11 @@ void doprocessing (int sock)
 	printf("\nOpcion: %c", opc[0]);
     
     /* Receive message from client */
-    if ((recvMsgSize = recv(sock, buffer, BUFFER_LENGTH, 0)) < 0)
+    /*if ((recvMsgSize = recv(sock, buffer, BUFFER_LENGTH, 0)) < 0)
         perror("ERROR reading to socket");
 	buffer[10] = '\0';
 		
-	printf("\nRFC: %s", buffer);
-	
-	FILE *fp;
-	char line[LINE_LENGTH];
-	int letter;			
-	int i = 0;
+	printf("\nRFC: %s", buffer);*/
 	
 	switch(opc[0]){
 	
@@ -80,6 +82,13 @@ void doprocessing (int sock)
 		
 			printf("\nOpcion leer elegida...");
 			////////////////////////////////////////////////////////READ FILE
+			
+			/* Receive message from client */
+			if ((recvMsgSize = recv(sock, buffer, BUFFER_LENGTH, 0)) < 0)
+				perror("ERROR reading to socket");
+			buffer[10] = '\0';
+				
+			printf("\nRFC: %s", buffer);
 			
 			fp = fopen(THE_FILE, "r"); 				/* Abrir archivo */
 			fseek(fp, HEADERS_LENGTH, SEEK_SET); 	/* Recorrer cursor al principio del primer registro */			
@@ -117,11 +126,11 @@ void doprocessing (int sock)
 		case 'E':
 
 			/* Receive message from client */
-			char linep[LINE_LENGTH];
-			if ((recvMsgSize = recv(sock, linep, LINE_LENGTH, 0)) < 0)
+			if ((recvMsgSize = recv(sock, lineBuffer, LINE_LENGTH, 0)) < 0)
 				perror("ERROR reading to socket");			
-		
+			
 			printf("\nOpcion editar elegida...");
+			printf("\nLinea recibida: %s", lineBuffer);
 			/////////////////////////////////////////////////////////////EDIT FILE
 		
 			fp = fopen(THE_FILE, "r+");
@@ -132,30 +141,29 @@ void doprocessing (int sock)
 			
 			do{ 
 				letter = getc(fp); /* Obtener letra por letra */
-				
+			
 				if(letter != '\n'){ 	/* Valida que no sea fin de linea */			
 					line[i] = letter; 	/* Inserta letra por letra en el arreglo line */
 					i++;			
 				}
 				else{
-					
-					if(strstr(line, linep)){
-						line[i] = '\0';
+				
+					line[i] = '\0';
+					if(strstr(line, lineBuffer)){					
 						
 						printf("\nLinea a editar: %s", line);
 						
 						fseek(fp, -3, SEEK_CUR);
 						
-						if(getc(fp) != 'N'){
-						
+						if(getc(fp) != 'N'){						
 							fseek(fp, -1, SEEK_CUR);						
 							fputc('N', fp);						
 							fseek(fp, 2, SEEK_CUR);
-						
-							registersNo++;
+							responseMsg[0] = '1';
 						}
 						else{
 							fseek(fp, 3, SEEK_CUR);
+							responseMsg[0] = '0';
 						}
 					}					
 					i = 0;
@@ -163,8 +171,33 @@ void doprocessing (int sock)
 			}while(letter != EOF);
 			
 			/* Envio del mensaje de salida */
-			responseMsg[15] = registersNo + '0';
-			if (send(sock, responseMsg, sizeof(responseMsg), 0) != sizeof(responseMsg))
+			if (send(sock, responseMsg, 1, 0) != sizeof(responseMsg))
+				perror("ERROR writing to socket");
+
+			break;
+			/////////////////////////////////////////////////////////////EDIT FILE END
+			
+		case 'A':
+
+			/* Receive message from client */
+			if ((recvMsgSize = recv(sock, lineBuffer, LINE_LENGTH, 0)) < 0)
+				perror("ERROR reading to socket");			
+			
+			printf("\nOpcion agregar elegida...");
+			printf("\nLinea recibida: %s", lineBuffer);
+			/////////////////////////////////////////////////////////////EDIT FILE
+		
+			fp = fopen(THE_FILE, "a+");
+			
+			for(i = 0; lineBuffer[i] != '\0'; i++){
+				fputc(lineBuffer[i], fp);
+			}
+			
+			
+			responseMsg[0] = '1';
+			
+			/* Envio del mensaje de salida */
+			if (send(sock, responseMsg, 1, 0) != sizeof(responseMsg))
 				perror("ERROR writing to socket");
 
 			break;
